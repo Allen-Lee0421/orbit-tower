@@ -9,6 +9,7 @@ import ControlHUD from "@/components/ControlHUD";
 import FloorIndicator from "@/components/FloorIndicator";
 import UnitInfoCard from "@/components/UnitInfoCard";
 import AIConcierge from "@/components/AIConcierge";
+import CognitiveGrowthBot from "@/components/CognitiveGrowthBot";
 import PricingModal from "@/components/PricingModal";
 import AuthModal from "@/components/AuthModal";
 import LegalModal from "@/components/LegalModal";
@@ -117,6 +118,9 @@ function HomeInner() {
 
       {/* 左下角 AI 樓管 */}
       <AIConcierge />
+
+      {/* 右下角：可審核、可複製、可分享的認知擴散文案機器人 */}
+      <CognitiveGrowthBot />
 
       {/* 戶別資訊卡 */}
       <UnitInfoCard unit={selectedUnit} onClose={handleCloseCard} />

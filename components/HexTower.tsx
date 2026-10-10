@@ -5,6 +5,43 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { FLOORS, type Unit, type LightColor, LIGHT_COLORS } from "@/data/units";
 
+const FLOOR_COLORS = ["#7DE7FF", "#00D68F", "#F5A623", "#A855F7", "#FF6B8A", "#4D7CFE"];
+
+function CrystalFloorBand({ floor, y, color }: { floor: number; y: number; color: string }) {
+  const ringRef = useRef<THREE.Mesh>(null);
+  const beamRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    if (ringRef.current) {
+      ringRef.current.rotation.z = t * (floor % 2 === 0 ? -0.12 : 0.12);
+      const mat = ringRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.18 + Math.sin(t * 1.6 + floor) * 0.06;
+    }
+    if (beamRef.current) {
+      const mat = beamRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.035 + Math.sin(t * 1.2 + floor) * 0.015;
+    }
+  });
+
+  return (
+    <group position={[0, y, 0]}>
+      <mesh ref={beamRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.03, 1.42, 6]} />
+        <meshBasicMaterial color={color} transparent opacity={0.04} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.23, 1.27, 6]} />
+        <meshBasicMaterial color={color} transparent opacity={0.2} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.36, 1.365, 6]} />
+        <meshBasicMaterial color={color} transparent opacity={0.42} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
 interface HexTowerProps {
   lightColor: LightColor;
   onUnitClick: (unit: Unit, position: THREE.Vector3) => void;
@@ -416,11 +453,13 @@ function CrystalUnit({
   unit,
   position,
   lightColor,
+  floorColor,
   onClick,
 }: {
   unit: Unit;
   position: [number, number, number];
   lightColor: LightColor;
+  floorColor: string;
   onClick: () => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -428,7 +467,7 @@ function CrystalUnit({
   const glowRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
   const baseColor = LIGHT_COLORS[lightColor].hex;
-  const unitColor = unit.color || baseColor;
+  const unitColor = unit.color || floorColor || baseColor;
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
@@ -506,7 +545,7 @@ function CrystalUnit({
       <lineSegments ref={edgeRef}>
         <edgesGeometry args={[new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize)]} />
         <lineBasicMaterial
-          color={unit.status === "available" ? "#4488ff" : unitColor}
+          color={unit.status === "available" ? floorColor : unitColor}
           transparent
           opacity={unit.status === "available" ? 0.3 : 0.55}
         />
@@ -516,7 +555,7 @@ function CrystalUnit({
       <mesh ref={glowRef}>
         <boxGeometry args={[cubeSize + 0.02, cubeSize + 0.02, cubeSize + 0.02]} />
         <meshBasicMaterial
-          color={unit.status === "available" ? "#4488ff" : unitColor}
+          color={unit.status === "available" ? floorColor : unitColor}
           transparent
           opacity={0.04}
           side={THREE.BackSide}
@@ -634,6 +673,16 @@ export default function HexTower({ lightColor, onUnitClick }: HexTowerProps) {
         />
       </mesh>
 
+      {/* === 逐層晶體能量環：讓六個營運中心在空間中被辨識 === */}
+      {FLOORS.map((floor) => (
+        <CrystalFloorBand
+          key={`floor-band-${floor.floor}`}
+          floor={floor.floor}
+          y={(floor.floor - 1) * FLOOR_HEIGHT - 2.5}
+          color={FLOOR_COLORS[floor.floor - 1]}
+        />
+      ))}
+
       {/* === 晶體方塊單元 === */}
       {unitPositions.map(({ unit, pos }) => (
         <CrystalUnit
@@ -641,6 +690,7 @@ export default function HexTower({ lightColor, onUnitClick }: HexTowerProps) {
           unit={unit}
           position={pos}
           lightColor={lightColor}
+          floorColor={FLOOR_COLORS[unit.floor - 1]}
           onClick={() => {
             const worldPos = new THREE.Vector3(...pos);
             if (groupRef.current) {
