@@ -426,6 +426,95 @@ function EmptyCore({ color }: { color: string }) {
   );
 }
 
+// ===== 展櫃內晶體動態：中心能量核 + 三軸軌道 + 六顆量子節點 =====
+function CrystalArtifact({ color, accent }: { color: string; accent: string }) {
+  const artifactRef = useRef<THREE.Group>(null);
+  const orbitRef = useRef<THREE.Group>(null);
+  const nodesRef = useRef<THREE.Group>(null);
+  const coreRef = useRef<THREE.Mesh>(null);
+  const haloRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    if (artifactRef.current) {
+      artifactRef.current.rotation.y = t * 0.24;
+      artifactRef.current.rotation.x = Math.sin(t * 0.55) * 0.08;
+    }
+    if (orbitRef.current) {
+      orbitRef.current.rotation.x = t * 0.7;
+      orbitRef.current.rotation.z = -t * 0.42;
+    }
+    if (nodesRef.current) {
+      nodesRef.current.rotation.y = -t * 0.9;
+      nodesRef.current.position.y = Math.sin(t * 1.7) * 0.035;
+    }
+    if (coreRef.current) {
+      const material = coreRef.current.material as THREE.MeshStandardMaterial;
+      material.emissiveIntensity = 1.4 + Math.sin(t * 3.2) * 0.55;
+      coreRef.current.scale.setScalar(1 + Math.sin(t * 2.1) * 0.08);
+    }
+    if (haloRef.current) {
+      const material = haloRef.current.material as THREE.MeshBasicMaterial;
+      material.opacity = 0.08 + Math.sin(t * 2.5) * 0.035;
+      haloRef.current.scale.setScalar(1 + Math.sin(t * 1.6) * 0.12);
+    }
+  });
+
+  const nodePositions = useMemo(() =>
+    Array.from({ length: 6 }, (_, i) => {
+      const angle = (i / 6) * Math.PI * 2;
+      return [Math.cos(angle) * 0.47, Math.sin(angle * 2) * 0.1, Math.sin(angle) * 0.47] as [number, number, number];
+    }),
+  []);
+
+  return (
+    <group ref={artifactRef} scale={0.35}>
+      <mesh ref={coreRef}>
+        <sphereGeometry args={[0.16, 24, 24]} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.5} metalness={0.25} roughness={0.08} />
+      </mesh>
+      <mesh ref={haloRef}>
+        <sphereGeometry args={[0.29, 16, 16]} />
+        <meshBasicMaterial color={color} transparent opacity={0.1} side={THREE.BackSide} />
+      </mesh>
+      <lineSegments>
+        <edgesGeometry args={[new THREE.BoxGeometry(0.86, 0.86, 0.86)]} />
+        <lineBasicMaterial color={color} transparent opacity={0.42} />
+      </lineSegments>
+
+      <group ref={orbitRef}>
+        <mesh rotation={[Math.PI / 2.6, 0.12, 0]}>
+          <torusGeometry args={[0.38, 0.018, 12, 36]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.1} metalness={0.92} roughness={0.12} />
+        </mesh>
+        <mesh rotation={[0.1, Math.PI / 2.8, Math.PI / 3]}>
+          <torusGeometry args={[0.46, 0.014, 12, 36]} />
+          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.85} metalness={0.92} roughness={0.12} />
+        </mesh>
+        <mesh rotation={[Math.PI / 3.3, Math.PI / 5, Math.PI / 2]}>
+          <torusGeometry args={[0.31, 0.012, 12, 32]} />
+          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.7} metalness={0.9} roughness={0.14} />
+        </mesh>
+      </group>
+
+      <group ref={nodesRef}>
+        {nodePositions.map((position, i) => (
+          <group key={i} position={position}>
+            <mesh>
+              <sphereGeometry args={[0.045 + (i % 2) * 0.012, 12, 12]} />
+              <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.4} metalness={0.5} roughness={0.1} />
+            </mesh>
+            <mesh scale={1.8}>
+              <sphereGeometry args={[0.045, 10, 10]} />
+              <meshBasicMaterial color={color} transparent opacity={0.12} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+    </group>
+  );
+}
+
 // ===== 選擇核心類型 =====
 function getCoreType(unit: Unit): "vault" | "energy" | "quantum" | "empty" {
   if (unit.status === "available") return "empty";
@@ -467,7 +556,8 @@ function CrystalUnit({
   const glowRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
   const baseColor = LIGHT_COLORS[lightColor].hex;
-  const unitColor = unit.color || floorColor || baseColor;
+  // 樓層色優先，確保六層在遠景也能一眼區分；品牌色保留為核心高光。
+  const unitColor = floorColor || unit.color || baseColor;
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
@@ -562,7 +652,9 @@ function CrystalUnit({
         />
       </mesh>
 
-      {/* === 內部核心 — 對齊參考圖的機械核心 === */}
+      {/* === 內部晶體展品：中心核、三軸軌道與懸浮節點 === */}
+      <CrystalArtifact color={floorColor} accent={unit.color || floorColor} />
+      {/* === 內部核心 — 保留依單元類型變化的機械核心 === */}
       <InnerCore unit={unit} color={unitColor} />
 
       {/* === 內部點光源 — 更強的發光 === */}
